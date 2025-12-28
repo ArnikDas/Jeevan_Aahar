@@ -1,14 +1,25 @@
-import express from "express";
+import dotenv from 'dotenv';
+/*👉 You should load .env as early as possible in your app.
+That’s why developers usually put it in the entry point file (like index.js or server.js), not in app.js.*/
 
-const app = express();
-const port = 5000;
+import app from "./app.js"; // --> importing express from app.js
 
-app.listen(port, () => {
-  console.log("hello form jeevan Aaahar server");
-   console.log(`server is running on http://localhost:${port}`)
-});
+import connectDB from './db/index.js'; // --> importing connectDB function from db/index.js
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
+// Use correct relative path for .env file in project root
+dotenv.config({ path :"././.env"});
+
+const port = process.env.PORT || 3000;
+
+console.log('Loaded PORT:', process.env.PORT);
+
+connectDB()
+.then(()=>{   // if and only if my db is connected i can then only listen on the port
+  app.listen(port,() =>{
+    console.log(`My app is listening on port http://localhost:${port}`);
+  })
 })
-export default app;
+.catch((err)=>{
+  console.error("Mongodb not connected",err)
+  process.exit(1);
+})
