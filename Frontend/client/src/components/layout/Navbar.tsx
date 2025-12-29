@@ -1,28 +1,60 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Heart, Menu, X, LogIn, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-
-// Mock auth state - will be replaced with real auth later
-const useAuth = () => {
-  const [isAuthenticated] = useState(false);
-  const [user] = useState<{ name: string; role: "donor" | "recipient" } | null>(null);
-  return { isAuthenticated, user };
-};
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const navLinks = [
-  { name: "Home", path: "/" },
-  { name: "Donor Dashboard", path: "/donate-dashboard" },
-  { name: "Recipient Dashboard", path: "/request-dashboard" },
-  { name: "Donate Food", path: "/donate" },
-  { name: "Request Food", path: "/requests" },
-  { name: "Admin", path: "/admin" },
+  { name: "Home", path: "/", roles: ["public"] },
+  { name: "Donor Dashboard", path: "/donate-dashboard", roles: ["donor"] },
+  { name: "Recipient Dashboard", path: "/request-dashboard", roles: ["recipient"] },
+  { name: "Donate Food", path: "/donate", roles: ["donor"] },
+  { name: "Admin", path: "/admin", roles: ["admin"] },
 ];
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user, userProfile, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+      });
+      navigate("/");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter navigation links based on user role
+  const getVisibleLinks = () => {
+    if (!user || !userProfile) {
+      // Show only public links for non-authenticated users
+      return navLinks.filter(link => link.roles.includes("public"));
+    }
+
+    // Show links appropriate for the user's role, but exclude Home
+    return navLinks.filter(link => {
+      // Hide Home link for authenticated users
+      if (link.path === "/") {
+        return false;
+      }
+      return link.roles.includes(userProfile.role) || link.roles.includes("public");
+    });
+  };
+
+  const visibleLinks = getVisibleLinks();
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -38,9 +70,8 @@ export function Navbar() {
             </span>
           </Link>
 
-        
           <div className="hidden lg:flex items-center gap-1">
-            {navLinks.map((link) => (
+            {visibleLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
@@ -56,13 +87,13 @@ export function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            {isAuthenticated && user ? (
+            {user && userProfile ? (
               <>
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{user.name}</span>
+                  <span className="text-sm font-medium">{userProfile.name}</span>
                 </div>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleSignOut}>
                   <LogOut className="h-4 w-4" />
                   Sign Out
                 </Button>
@@ -95,7 +126,7 @@ export function Navbar() {
         {isOpen && (
           <div className="lg:hidden py-4 border-t border-border animate-fade-in">
             <div className="flex flex-col gap-2">
-              {navLinks.map((link) => (
+              {visibleLinks.map((link) => (
                 <Link
                   key={link.path}
                   to={link.path}
@@ -109,16 +140,16 @@ export function Navbar() {
                   {link.name}
                 </Link>
               ))}
-              
+
               {/* Mobile Auth */}
               <div className="border-t border-border mt-2 pt-4 px-4">
-                {isAuthenticated && user ? (
+                {user && userProfile ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary">
                       <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{user.name}</span>
+                      <span className="text-sm font-medium">{userProfile.name}</span>
                     </div>
-                    <Button variant="outline" size="sm" className="w-full gap-2">
+                    <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleSignOut}>
                       <LogOut className="h-4 w-4" />
                       Sign Out
                     </Button>

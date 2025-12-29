@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Heart, Mail, Lock, User, Eye, EyeOff, ArrowRight, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,12 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-
-// Placeholder for API integration
-const API_KEY = "YOUR_API_KEY_HERE";
+import { auth } from "@/config/firebase"
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { createUserProfile, getUserProfile } from "@/services/userService";
 
 export default function AuthPage() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("signin");
@@ -32,21 +33,40 @@ export default function AuthPage() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate API call - replace with actual Supabase auth
-    setTimeout(() => {
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, signInData.email, signInData.password);
+
+      // Fetch user profile to determine role
+      const userProfile = await getUserProfile(userCredential.user.uid);
+
       toast({
         title: "Sign In Successful! 🎉",
-        description: "Welcome back to Jeevan Aahar.",
+        description: `Welcome back, ${userProfile?.name || 'User'}!`,
       });
+
+      // Redirect based on user role
+      if (userProfile?.role === "donor") {
+        navigate("/donate-dashboard");
+      } else if (userProfile?.role === "recipient") {
+        navigate("/request-dashboard");
+      } else {
+        navigate("/");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Sign In Failed",
+        description: error.message || "Invalid email or password. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-      // Navigate to dashboard after successful login
-    }, 1500);
+    }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (signUpData.password !== signUpData.confirmPassword) {
       toast({
         title: "Passwords don't match",
@@ -57,16 +77,70 @@ export default function AuthPage() {
     }
 
     setIsLoading(true);
-    
-    // Simulate API call - replace with actual Supabase auth
-    setTimeout(() => {
+
+    try {
+      // Create user with Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        signUpData.email,
+        signUpData.password
+      );
+
+      // Update user profile with name
+      await updateProfile(userCredential.user, {
+        displayName: signUpData.name,
+      });
+
+      // Store user profile in Firestore
+      await createUserProfile(userCredential.user.uid, {
+        name: signUpData.name,
+        email: signUpData.email,
+        role: signUpData.role,
+      });
+
       toast({
         title: "Account Created! 🎉",
-        description: "Welcome to Jeevan Aahar. You can now sign in.",
+        description: `Welcome to Jeevan Aahar, ${signUpData.name}!`,
       });
+
+      // Wait for AuthContext to load the new user profile
+      // This prevents a race condition where navigation happens before the profile is loaded
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Redirect to appropriate dashboard based on role
+      if (signUpData.role === "donor") {
+        navigate("/donate-dashboard");
+      } else {
+        navigate("/request-dashboard");
+      }
+
+      // Reset form
+      setSignUpData({
+        name: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        role: "donor",
+      });
+    } catch (error: any) {
+      let errorMessage = "Failed to create account. Please try again.";
+
+      if (error.code === "auth/email-already-in-use") {
+        errorMessage = "This email is already registered. Please sign in instead.";
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "Password should be at least 6 characters long.";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Invalid email address.";
+      }
+
+      toast({
+        title: "Sign Up Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-      setActiveTab("signin");
-    }, 1500);
+    }
   };
 
   return (
@@ -163,11 +237,10 @@ export default function AuthPage() {
                       <button
                         type="button"
                         onClick={() => setSignUpData(prev => ({ ...prev, role: "donor" }))}
-                        className={`p-3 rounded-xl border-2 transition-all text-center ${
-                          signUpData.role === "donor"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
+                        className={`p-3 rounded-xl border-2 transition-all text-center ${signUpData.role === "donor"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                          }`}
                       >
                         <Heart className={`h-5 w-5 mx-auto mb-1 ${signUpData.role === "donor" ? "text-primary" : "text-muted-foreground"}`} />
                         <span className="text-sm font-medium">Donate Food</span>
@@ -175,11 +248,10 @@ export default function AuthPage() {
                       <button
                         type="button"
                         onClick={() => setSignUpData(prev => ({ ...prev, role: "recipient" }))}
-                        className={`p-3 rounded-xl border-2 transition-all text-center ${
-                          signUpData.role === "recipient"
-                            ? "border-accent bg-accent/5"
-                            : "border-border hover:border-accent/50"
-                        }`}
+                        className={`p-3 rounded-xl border-2 transition-all text-center ${signUpData.role === "recipient"
+                          ? "border-accent bg-accent/5"
+                          : "border-border hover:border-accent/50"
+                          }`}
                       >
                         <Building2 className={`h-5 w-5 mx-auto mb-1 ${signUpData.role === "recipient" ? "text-accent" : "text-muted-foreground"}`} />
                         <span className="text-sm font-medium">Request Food</span>
@@ -259,7 +331,7 @@ export default function AuthPage() {
                   </div>
 
                   <Button type="submit" className="w-full gradient-hero border-0" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Create Account"}
+                    {isLoading ? "Setting up your account..." : "Create Account"}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </form>

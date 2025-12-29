@@ -1,6 +1,6 @@
-import { 
-  Utensils, 
-  CheckCircle2, 
+import {
+  Utensils,
+  CheckCircle2,
   Clock,
   Package,
   Heart,
@@ -16,10 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 
 const recipientStats = [
-  { label: "Requests Made", value: "18", icon: Package, color: "primary" },
   { label: "Meals Received", value: "2,800", icon: Utensils, color: "success" },
   { label: "People Fed", value: "450", icon: Users, color: "accent" },
-  { label: "Active Requests", value: "2", icon: Clock, color: "info" },
+  { label: "Total Donations", value: "18", icon: Package, color: "primary" },
+  { label: "This Month", value: "5", icon: Heart, color: "info" },
 ];
 
 const recentRequests = [
@@ -95,14 +95,8 @@ export function RecipientDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Welcome, Hope Foundation! 👋</h2>
-          <p className="text-muted-foreground">Manage your food requests and track deliveries.</p>
+          <p className="text-muted-foreground">View donations sent by donors and track deliveries.</p>
         </div>
-        <Button className="gradient-warm border-0" asChild>
-          <Link to="/requests">
-            <Package className="mr-2 h-4 w-4" />
-            New Request
-          </Link>
-        </Button>
       </div>
 
       {/* Stats */}
@@ -157,10 +151,10 @@ export function RecipientDashboard() {
         </CardContent>
       </Card>
 
-      {/* Recent Requests */}
+      {/* Recent Donations Received */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg">Recent Requests</CardTitle>
+          <CardTitle className="text-lg">Recent Donations Received</CardTitle>
           <Button variant="ghost" size="sm" className="text-muted-foreground">
             View All
           </Button>
@@ -197,12 +191,11 @@ export function RecipientDashboard() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
-          { label: "Request Food", icon: Package, to: "/requests", color: "accent" },
-          { label: "Track Deliveries", icon: MapPin, to: "/dashboard", color: "info" },
-          { label: "Our Impact", icon: Heart, to: "/dashboard", color: "success" },
-          { label: "History", icon: Clock, to: "/dashboard", color: "primary" },
+          { label: "Track Deliveries", icon: MapPin, to: "/request-dashboard", color: "info" },
+          { label: "Our Impact", icon: Heart, to: "/request-dashboard", color: "success" },
+          { label: "History", icon: Clock, to: "/request-dashboard", color: "primary" },
         ].map((action) => (
           <Link
             key={action.label}
