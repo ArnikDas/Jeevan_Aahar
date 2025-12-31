@@ -2,6 +2,8 @@ import { Router } from "express";
 import {
   createDonationForm,
   getAllDonations,
+  acceptDonation,
+  completeDonation,
 } from "../controllers/donationcontrollers.js";
 
 import {
@@ -23,6 +25,12 @@ router
   .route("/")
   .post(authenticateAndLoadProfile, requireCompletedProfile, createDonationForm)
   .get(authenticateAndLoadProfile, getAllDonations);
+
+// Accept donation (receiver only)
+router.patch("/:id/accept", authenticateAndLoadProfile, requireCompletedProfile, acceptDonation);
+
+// Complete donation (receiver who accepted only)
+router.patch("/:id/complete", authenticateAndLoadProfile, requireCompletedProfile, completeDonation);
 
 
 export default router;

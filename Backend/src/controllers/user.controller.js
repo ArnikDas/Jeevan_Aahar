@@ -70,3 +70,47 @@ export const updateProfile = asyncHandler(async (req, res) => {
         new ApiResponse(200, profile, "Profile updated successfully")
     );
 });
+
+/**
+ * GET /api/v1/profile/:uid
+ * 
+ * Get public profile information by UID
+ * Returns safe profile data (excludes sensitive info)
+ */
+export const getUserByUid = asyncHandler(async (req, res) => {
+    const { uid } = req.params;
+
+    if (!uid) {
+        return res.status(400).json({
+            success: false,
+            message: "UID is required",
+        });
+    }
+
+    const profile = await Profile.findOne({ uid });
+
+    if (!profile) {
+        return res.status(404).json({
+            success: false,
+            message: "User profile not found",
+        });
+    }
+
+    // Return only public/safe fields
+    const publicProfile = {
+        uid: profile.uid,
+        name: profile.name,
+        role: profile.role,
+        phone: profile.phone,
+        address: profile.address,
+        landmark: profile.landmark,
+        latitude: profile.latitude,
+        longitude: profile.longitude,
+        avatar: profile.avatar,
+    };
+
+    return res.status(200).json(
+        new ApiResponse(200, publicProfile, "User profile retrieved successfully")
+    );
+});
+

@@ -17,9 +17,40 @@ export interface DonationFormData {
     landmark?: string;
     pickupTime: Date;
     pickupDate: Date;
+    latitude?: number;
+    longitude?: number;
+}
+
+export interface PopulatedDonor {
+    _id: string;
+    uid: string;
+    name: string;
+    email: string;
+    phone?: string;
+    address?: string;
+    landmark?: string;
+    latitude?: number;
+    longitude?: number;
+    avatar?: string;
+    role: "donor" | "recipient";
+}
+
+export interface PopulatedReceiver {
+    _id: string;
+    uid: string;
+    name: string;
+    email: string;
+    phone?: string;
+    address?: string;
+    landmark?: string;
+    latitude?: number;
+    longitude?: number;
+    avatar?: string;
+    role: "donor" | "recipient";
 }
 
 export interface DonationResponse {
+    donor: string | PopulatedDonor | undefined;
     _id: string;
     name: string;
     quantity: number;
@@ -33,6 +64,12 @@ export interface DonationResponse {
     landmark?: string;
     pickupTime: Date;
     pickupDate: Date;
+    latitude?: number;
+    longitude?: number;
+    status: "Pending" | "In Process" | "Completed";
+    acceptedBy?: string | PopulatedReceiver;
+    acceptedAt?: Date;
+    completedAt?: Date;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -138,4 +175,74 @@ export function convertImageToBase64(file: File): Promise<string> {
         reader.onerror = reject;
         reader.readAsDataURL(file);
     });
+}
+
+/**
+ * Accept a donation (receiver only)
+ * Changes status from Pending to In Process
+ */
+export async function acceptDonation(donationId: string): Promise<ApiResponse<DonationResponse>> {
+    try {
+        const user = auth.currentUser;
+        const token = user ? await user.getIdToken() : null;
+
+        if (!token) {
+            throw new Error("User not authenticated");
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/donation/${donationId}/accept`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+                errorData.message || `Failed to accept donation: ${response.statusText}`
+            );
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("Error accepting donation:", error);
+        throw error;
+    }
+}
+
+/**
+ * Complete a donation (receiver who accepted only)
+ * Changes status from In Process to Completed
+ */
+export async function completeDonation(donationId: string): Promise<ApiResponse<DonationResponse>> {
+    try {
+        const user = auth.currentUser;
+        const token = user ? await user.getIdToken() : null;
+
+        if (!token) {
+            throw new Error("User not authenticated");
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/donation/${donationId}/complete`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+                errorData.message || `Failed to complete donation: ${response.statusText}`
+            );
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("Error completing donation:", error);
+        throw error;
+    }
 }

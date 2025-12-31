@@ -119,3 +119,32 @@ export async function updateUserProfile(
         throw error;
     }
 }
+
+/**
+ * Get public user profile by UID
+ * Returns public profile information (no authentication required)
+ */
+export async function getUserByUid(uid: string): Promise<UserProfile | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/profile/${uid}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                return null;
+            }
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Failed to fetch user profile: ${response.statusText}`);
+        }
+
+        const data: ApiResponse<UserProfile> = await response.json();
+        return data.data;
+    } catch (error) {
+        console.error("Error fetching user profile by UID:", error);
+        throw error;
+    }
+}

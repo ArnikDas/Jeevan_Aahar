@@ -16,18 +16,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { getDonations, DonationResponse } from "@/services/donationService";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getDonations, DonationResponse, acceptDonation, completeDonation } from "@/services/donationService";
 import { format, isToday } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
+import { DonationDetailsDialog } from "./DonationDetailsDialog";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 const statusStyles = {
-  "Delivered": "bg-success/10 text-success border-success/20",
-  "Matched": "bg-info/10 text-info border-info/20",
-  "In Transit": "bg-accent/10 text-accent border-accent/20",
   "Pending": "bg-warning/10 text-warning border-warning/20",
-  "Confirmed": "bg-primary/10 text-primary border-primary/20",
-  "Available": "bg-success/10 text-success border-success/20",
+  "In Process": "bg-info/10 text-info border-info/20",
+  "Completed": "bg-success/10 text-success border-success/20",
 };
 
 const foodTypeEmojis: Record<string, string> = {
@@ -41,6 +41,61 @@ const foodTypeEmojis: Record<string, string> = {
 
 export function RecipientDashboard() {
   const { userProfile } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedDonation, setSelectedDonation] = useState<DonationResponse | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleViewDetails = (donation: DonationResponse) => {
+    setSelectedDonation(donation);
+    setIsDialogOpen(true);
+  };
+
+  // Accept donation mutation
+  const acceptMutation = useMutation({
+    mutationFn: acceptDonation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["donations"] });
+      toast({
+        title: "Donation Accepted! ✅",
+        description: "You can now pick up this donation.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Accept",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Complete donation mutation
+  const completeMutation = useMutation({
+    mutationFn: completeDonation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["donations"] });
+      toast({
+        title: "Donation Completed! 🎉",
+        description: "Thank you for confirming receipt.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Complete",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAccept = (donationId: string) => {
+    acceptMutation.mutate(donationId);
+  };
+
+  const handleComplete = (donationId: string) => {
+    completeMutation.mutate(donationId);
+  };
 
   // Fetch all donations from backend
   const { data: donationsData, isLoading, error } = useQuery({
@@ -117,7 +172,11 @@ export function RecipientDashboard() {
                 </h3>
                 <div className="mt-3 space-y-2">
                   {todayPickups.slice(0, 3).map((donation: DonationResponse) => (
-                    <div key={donation._id} className="flex items-center justify-between p-3 bg-card rounded-lg border border-border">
+                    <div
+                      key={donation._id}
+                      className="flex items-center justify-between p-3 bg-card rounded-lg border border-border hover:border-accent/50 transition-colors cursor-pointer"
+                      onClick={() => handleViewDetails(donation)}
+                    >
                       <div>
                         <p className="font-medium">{donation.name} • {donation.quantity} servings</p>
                         <p className="text-sm text-muted-foreground">
@@ -187,8 +246,8 @@ export function RecipientDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium truncate">{donation.name}</p>
-                      <Badge variant="outline" className={statusStyles["Available"]}>
-                        Available
+                      <Badge variant="outline" className={statusStyles[donation.status]}>
+                        {donation.status}
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
@@ -199,16 +258,54 @@ export function RecipientDashboard() {
                       {donation.address.split(',').slice(0, 2).join(',')}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="flex flex-col gap-2 items-end">
                     <p className="text-sm text-muted-foreground">
                       {format(new Date(donation.pickupDate), "MMM dd, yyyy")}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(donation.pickupTime), "h:mm a")}
                     </p>
-                    <Button variant="ghost" size="sm" className="h-7 px-2 mt-1">
-                      <Eye className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex gap-2">
+                      {/* Accept button - only show if status is Pending */}
+                      {donation.status === "Pending" && (
+                        <Button
+                          size="sm"
+                          className="h-7 px-3 bg-success hover:bg-success/90"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAccept(donation._id);
+                          }}
+                          disabled={acceptMutation.isPending}
+                        >
+                          {acceptMutation.isPending ? "Accepting..." : "Accept"}
+                        </Button>
+                      )}
+                      {/* Complete button - only show if status is In Process and user accepted it */}
+                      {donation.status === "In Process" &&
+                        typeof donation.acceptedBy === 'object' &&
+                        donation.acceptedBy?.uid === userProfile?.uid && (
+                          <Button
+                            size="sm"
+                            className="h-7 px-3 bg-primary hover:bg-primary/90"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleComplete(donation._id);
+                            }}
+                            disabled={completeMutation.isPending}
+                          >
+                            {completeMutation.isPending ? "Completing..." : "Mark Received"}
+                          </Button>
+                        )}
+                      {/* View details button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2"
+                        onClick={() => handleViewDetails(donation)}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -235,6 +332,13 @@ export function RecipientDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Donation Details Dialog */}
+      <DonationDetailsDialog
+        donation={selectedDonation}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+      />
     </div>
   );
 }

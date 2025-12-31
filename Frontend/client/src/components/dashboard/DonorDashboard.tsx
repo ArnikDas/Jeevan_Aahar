@@ -9,7 +9,9 @@ import {
   Calendar,
   Eye,
   Inbox,
-  User
+  User,
+  Phone,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,16 +21,24 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { getDonations, DonationResponse } from "@/services/donationService";
 import { format } from "date-fns";
+import { useState } from "react";
+import { PopulatedReceiver } from "@/services/donationService";
 
 const statusStyles = {
-  "Delivered": "bg-success/10 text-success border-success/20",
-  "In Transit": "bg-accent/10 text-accent border-accent/20",
   "Pending": "bg-warning/10 text-warning border-warning/20",
+  "In Process": "bg-info/10 text-info border-info/20",
+  "Completed": "bg-success/10 text-success border-success/20",
 };
 
 export function DonorDashboard() {
   const { userProfile } = useAuth();
+  const [selectedReceiver, setSelectedReceiver] = useState<PopulatedReceiver | null>(null);
+  const [isReceiverDialogOpen, setIsReceiverDialogOpen] = useState(false);
 
+  const handleViewReceiver = (receiver: PopulatedReceiver) => {
+    setSelectedReceiver(receiver);
+    setIsReceiverDialogOpen(true);
+  };
 
   // Fetch donations from backend
   const { data: donationsData, isLoading, error } = useQuery({
@@ -44,16 +54,12 @@ export function DonorDashboard() {
   // Filter donations by current user's uid
   const userDonations = donationsData?.data?.filter(
     (donation: DonationResponse) => {
-      // Check if donation.donor (uid) matches userProfile.uid
-      // Fallback to email check if donor ID is somehow missing
-      const isDonorMatch = donation.donor === userProfile?.uid;
-
-      if (!isDonorMatch && donation.email === userProfile?.email) {
-        console.log("Match by email (legacy):", donation.email);
-        return true;
+      // Check if donation.donor is populated object or uid string
+      if (typeof donation.donor === 'object' && donation.donor) {
+        return donation.donor.uid === userProfile?.uid;
       }
-
-      return isDonorMatch;
+      // Fallback to string comparison
+      return donation.donor === userProfile?.uid;
     }
   ) || [];
 
@@ -189,21 +195,40 @@ export function DonorDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium truncate">{donation.name}</p>
-                      <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                        Submitted
+                      <Badge variant="outline" className={statusStyles[donation.status]}>
+                        {donation.status}
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {donation.quantity} servings{donation.foodType ? ` • ${donation.foodType}` : ''}
                     </p>
+                    {/* Show receiver info if accepted */}
+                    {donation.acceptedBy && typeof donation.acceptedBy === 'object' && (
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        Accepted by {donation.acceptedBy.name}
+                      </p>
+                    )}
                   </div>
-                  <div className="text-right">
+                  <div className="flex flex-col gap-2 items-end">
                     <p className="text-sm text-muted-foreground">
                       {format(new Date(donation.createdAt), "MMM dd, yyyy")}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(donation.pickupDate), "MMM dd")} pickup
                     </p>
+                    {/* Show receiver profile button if accepted */}
+                    {donation.acceptedBy && typeof donation.acceptedBy === 'object' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-3"
+                        onClick={() => handleViewReceiver(donation.acceptedBy as PopulatedReceiver)}
+                      >
+                        <User className="h-3 w-3 mr-1" />
+                        View Receiver
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -230,6 +255,76 @@ export function DonorDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Receiver Profile Dialog */}
+      {selectedReceiver && (
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center ${isReceiverDialogOpen ? '' : 'hidden'}`}
+          onClick={() => setIsReceiverDialogOpen(false)}
+        >
+          <div className="fixed inset-0 bg-black/50" />
+          <div
+            className="relative bg-card rounded-lg p-6 max-w-md w-full mx-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Receiver Profile
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+                  {selectedReceiver.avatar ? (
+                    <img
+                      src={selectedReceiver.avatar}
+                      alt={selectedReceiver.name}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-8 w-8 text-muted-foreground" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">{selectedReceiver.name}</h3>
+                  <Badge variant="outline" className="capitalize">
+                    {selectedReceiver.role}
+                  </Badge>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {selectedReceiver.phone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <a href={`tel:${selectedReceiver.phone}`} className="text-primary hover:underline">
+                      {selectedReceiver.phone}
+                    </a>
+                  </div>
+                )}
+                {selectedReceiver.email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <a href={`mailto:${selectedReceiver.email}`} className="text-primary hover:underline">
+                      {selectedReceiver.email}
+                    </a>
+                  </div>
+                )}
+                {selectedReceiver.address && (
+                  <div className="flex items-start gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <span className="text-muted-foreground">{selectedReceiver.address}</span>
+                  </div>
+                )}
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => setIsReceiverDialogOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

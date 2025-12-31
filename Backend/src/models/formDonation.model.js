@@ -48,10 +48,33 @@ const donationFormSchema = new Schema(
             type: Date,
             required: true
         },
+        latitude: {
+            type: Number,
+        },
+        longitude: {
+            type: Number,
+        },
         donor: {
             type: Schema.Types.ObjectId,
-            ref: "User",
+            ref: "Profile",
             required: true,
+        },
+        // Status tracking fields
+        status: {
+            type: String,
+            enum: ["Pending", "In Process", "Completed"],
+            default: "Pending",
+            required: true,
+        },
+        acceptedBy: {
+            type: Schema.Types.ObjectId,
+            ref: "Profile",
+        },
+        acceptedAt: {
+            type: Date,
+        },
+        completedAt: {
+            type: Date,
         },
     },
     {

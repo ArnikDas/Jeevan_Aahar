@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getProfile, updateProfile } from "../controllers/user.controller.js";
+import { getProfile, updateProfile, getUserByUid } from "../controllers/user.controller.js";
 import { authenticateAndLoadProfile } from "../middlewares/firebase.js";
 
 const router = Router();
@@ -9,6 +9,7 @@ const router = Router();
  * 
  * GET /profile - Get profile preview (auto-filled + isCompleted)
  * PATCH /profile - Update profile completion fields
+ * GET /profile/:uid - Get public profile by UID
  * 
  * Both routes use authenticateAndLoadProfile middleware which:
  * - Verifies Firebase token
@@ -18,5 +19,7 @@ const router = Router();
 
 router.get("/profile", authenticateAndLoadProfile, getProfile);
 router.patch("/profile", authenticateAndLoadProfile, updateProfile);
+router.get("/profile/:uid", getUserByUid); // Public endpoint, no auth required
 
 export default router;
+

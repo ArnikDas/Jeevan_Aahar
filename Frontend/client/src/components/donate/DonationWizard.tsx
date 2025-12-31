@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Check, ChevronLeft, ChevronRight, MapPin, Clock, Package, Utensils, User, Phone, Send, CheckCircle2, Camera, X, Image } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, MapPin, Clock, Package, Utensils, User, Phone, Send, CheckCircle2, Camera, X, Image, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +38,8 @@ interface FormData {
   phone: string;
   email: string;
   additionalNote: string;
+  latitude: number | undefined;
+  longitude: number | undefined;
 }
 
 export function DonationWizard() {
@@ -47,6 +49,7 @@ export function DonationWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -61,6 +64,8 @@ export function DonationWizard() {
     phone: "",
     email: "",
     additionalNote: "",
+    latitude: undefined,
+    longitude: undefined,
   });
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,6 +83,44 @@ export function DonationWizard() {
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleGetLocation = () => {
+    setIsGettingLocation(true);
+
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation not supported",
+        description: "Your browser doesn't support geolocation.",
+        variant: "destructive",
+      });
+      setIsGettingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }));
+        toast({
+          title: "Location captured! 📍",
+          description: "Your location has been successfully updated.",
+        });
+        setIsGettingLocation(false);
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        toast({
+          title: "Location access denied",
+          description: "Please enable location access in your browser.",
+          variant: "destructive",
+        });
+        setIsGettingLocation(false);
+      }
+    );
   };
 
   const updateFormData = (field: keyof FormData, value: string) => {
@@ -136,6 +179,8 @@ export function DonationWizard() {
         landmark: formData.landmark,
         pickupTime: pickupDateTime,
         pickupDate: new Date(formData.pickupDate),
+        latitude: formData.latitude,
+        longitude: formData.longitude,
       };
 
       // Submit to backend
@@ -183,7 +228,7 @@ export function DonationWizard() {
               <p><span className="font-medium text-foreground">Location:</span> {formData.address}</p>
             </div>
           </div>
-          <Button onClick={() => { setIsSubmitted(false); setCurrentStep(1); setImages([]); setFormData({ foodType: "", name: "", quantity: "", address: "", landmark: "", pickupDate: "", pickupTime: "", contactName: "", phone: "", email: "", additionalNote: "" }); }} className="gradient-hero border-0">
+          <Button onClick={() => { setIsSubmitted(false); setCurrentStep(1); setImages([]); setFormData({ foodType: "", name: "", quantity: "", address: "", landmark: "", pickupDate: "", pickupTime: "", contactName: "", phone: "", email: "", additionalNote: "", latitude: undefined, longitude: undefined }); }} className="gradient-hero border-0">
             Donate More Food
           </Button>
         </div>
@@ -392,6 +437,29 @@ export function DonationWizard() {
                       onChange={(e) => updateFormData("pickupTime", e.target.value)}
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Location Coordinates</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Capture your current location to help volunteers find you easily
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={handleGetLocation}
+                      disabled={isGettingLocation}
+                    >
+                      <Navigation className="mr-2 h-4 w-4" />
+                      {isGettingLocation ? "Getting location..." : "Capture Location"}
+                    </Button>
+                  </div>
+                  {formData.latitude !== undefined && formData.longitude !== undefined && (
+                    <p className="text-xs text-muted-foreground">
+                      📍 {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
