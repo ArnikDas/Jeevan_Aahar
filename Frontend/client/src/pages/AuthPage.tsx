@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/config/firebase"
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { createUserProfile, getUserProfile } from "@/services/userService";
+import { getUserProfile } from "@/services/userService";
 
 export default function AuthPage() {
   const { toast } = useToast();
@@ -37,13 +37,19 @@ export default function AuthPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, signInData.email, signInData.password);
 
-      // Fetch user profile to determine role
-      const userProfile = await getUserProfile(userCredential.user.uid);
+      // Fetch user profile to determine role and profile completion status
+      const userProfile = await getUserProfile();
 
       toast({
         title: "Sign In Successful! 🎉",
         description: `Welcome back, ${userProfile?.name || 'User'}!`,
       });
+
+      // Check if profile is completed
+      if (!userProfile?.isCompleted) {
+        navigate("/complete-profile");
+        return;
+      }
 
       // Redirect based on user role
       if (userProfile?.role === "donor") {
@@ -91,28 +97,19 @@ export default function AuthPage() {
         displayName: signUpData.name,
       });
 
-      // Store user profile in Firestore
-      await createUserProfile(userCredential.user.uid, {
-        name: signUpData.name,
-        email: signUpData.email,
-        role: signUpData.role,
-      });
+      // Trigger profile auto-create on backend by calling GET with role
+      await getUserProfile(signUpData.role);
 
       toast({
         title: "Account Created! 🎉",
-        description: `Welcome to Jeevan Aahar, ${signUpData.name}!`,
+        description: `Welcome to Jeevan Aahar, ${signUpData.name}! Please complete your profile.`,
       });
 
       // Wait for AuthContext to load the new user profile
-      // This prevents a race condition where navigation happens before the profile is loaded
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Redirect to appropriate dashboard based on role
-      if (signUpData.role === "donor") {
-        navigate("/donate-dashboard");
-      } else {
-        navigate("/request-dashboard");
-      }
+      // Redirect to profile completion page
+      navigate("/complete-profile");
 
       // Reset form
       setSignUpData({

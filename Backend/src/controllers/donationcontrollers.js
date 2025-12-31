@@ -4,12 +4,13 @@ import { donationForm } from "../models/formDonation.model.js";
 const createDonationForm = async (req, res) => {
   try {
     console.log("📦 Creating donation with body:", req.body);
-    console.log("👤 Logged in user:", req.user?._id);
+    console.log("👤 Logged in profile:", req.profile?._id);
 
-    if (!req.user?._id) {
+    // Profile is guaranteed to exist and be completed by middleware
+    if (!req.profile?._id) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized: User not found",
+        message: "Unauthorized: Profile not found",
       });
     }
 
@@ -17,9 +18,6 @@ const createDonationForm = async (req, res) => {
       name,
       quantity,
       foodType,
-      email,
-      phone,
-      address,
       preparedAt,
       additionalNote,
       landmark,
@@ -28,14 +26,16 @@ const createDonationForm = async (req, res) => {
       picture,
     } = req.body;
 
-    // Required fields (NO picture here)
+    // Use profile data for email, phone, address - NEVER from frontend
+    const email = req.profile.email;
+    const phone = req.profile.phone;
+    const address = req.profile.address;
+
+    // Required fields validation
     const requiredFields = {
       name,
       quantity,
       foodType,
-      email,
-      phone,
-      address,
       preparedAt,
       pickupDate,
       pickupTime,
@@ -54,16 +54,16 @@ const createDonationForm = async (req, res) => {
       name,
       quantity,
       foodType,
-      email,
-      phone,
-      address,
+      email, // From profile
+      phone, // From profile
+      address, // From profile
       preparedAt: new Date(preparedAt),
       pickupDate: new Date(pickupDate),
       pickupTime: new Date(pickupTime),
       additionalNote,
-      landmark,
-      picture, // should be URL later
-      donor: req.user._id,
+      landmark: landmark || req.profile.landmark, // Use profile landmark if not provided
+      picture,
+      donor: req.profile._id, // Use profile ID as donor
     });
 
     return res.status(201).json(

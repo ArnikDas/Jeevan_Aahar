@@ -9,7 +9,8 @@ import {
   Calendar,
   Eye,
   Bell,
-  Inbox
+  Inbox,
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -217,9 +218,10 @@ export function RecipientDashboard() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Track Deliveries", icon: MapPin, to: "/request-dashboard", color: "info" },
+          { label: "Profile", icon: User, to: "/profile", color: "accent" },
           { label: "Our Impact", icon: Heart, to: "/request-dashboard", color: "success" },
           { label: "History", icon: Clock, to: "/request-dashboard", color: "primary" },
         ].map((action) => (

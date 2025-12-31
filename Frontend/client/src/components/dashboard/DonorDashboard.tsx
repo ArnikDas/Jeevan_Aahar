@@ -8,7 +8,8 @@ import {
   MapPin,
   Calendar,
   Eye,
-  Inbox
+  Inbox,
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -207,9 +208,9 @@ export function DonorDashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Donate Food", icon: Package, to: "/donate", color: "primary" },
-          { label: "Track Pickups", icon: MapPin, to: "/donate-dashboard", color: "accent" },
+          { label: "Profile", icon: User, to: "/profile", color: "info" },
           { label: "View Impact", icon: TrendingUp, to: "/donate-dashboard", color: "success" },
-          { label: "History", icon: Clock, to: "/donate-dashboard", color: "info" },
+          { label: "History", icon: Clock, to: "/donate-dashboard", color: "accent" },
         ].map((action) => (
           <Link
             key={action.label}

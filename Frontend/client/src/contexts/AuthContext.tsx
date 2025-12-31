@@ -8,6 +8,7 @@ interface AuthContextType {
     userProfile: UserProfile | null;
     loading: boolean;
     signOut: () => Promise<void>;
+    refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,19 +18,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const fetchUserProfile = async (firebaseUser: User) => {
+        try {
+            const profile = await getUserProfile();
+            setUserProfile(profile);
+        } catch (error: any) {
+            // Silently handle 404 - profile doesn't exist yet for new users
+            if (error.message?.includes("404") || error.message?.includes("not found")) {
+                setUserProfile(null);
+            } else {
+                console.error("Error fetching user profile:", error);
+                setUserProfile(null);
+            }
+        }
+    };
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setUser(firebaseUser);
 
             if (firebaseUser) {
-                // Fetch user profile from Firestore
-                try {
-                    const profile = await getUserProfile(firebaseUser.uid);
-                    setUserProfile(profile);
-                } catch (error) {
-                    console.error("Error fetching user profile:", error);
-                    setUserProfile(null);
-                }
+                await fetchUserProfile(firebaseUser);
             } else {
                 setUserProfile(null);
             }
@@ -39,6 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return unsubscribe;
     }, []);
+
+    const refreshUserProfile = async () => {
+        if (user) {
+            await fetchUserProfile(user);
+        }
+    };
 
     const signOut = async () => {
         try {
@@ -52,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, userProfile, loading, signOut }}>
+        <AuthContext.Provider value={{ user, userProfile, loading, signOut, refreshUserProfile }}>
             {children}
         </AuthContext.Provider>
     );

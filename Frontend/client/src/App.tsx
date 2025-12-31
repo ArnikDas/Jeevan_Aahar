@@ -13,6 +13,8 @@ import DonatePage from "./pages/DonatePage";
 import RequestsPage from "./pages/RequestsPage";
 import AdminPage from "./pages/AdminPage";
 import AuthPage from "./pages/AuthPage";
+import ProfileCompletionPage from "./pages/ProfileCompletionPage";
+import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +35,25 @@ const App = () => (
 
             <Route path="/auth" element={<AuthPage />} />
 
+            {/* Profile Completion - Protected but no profile completion required */}
+            <Route
+              path="/complete-profile"
+              element={
+                <ProtectedRoute requireProfileCompletion={false}>
+                  <ProfileCompletionPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Profile Edit - Protected and requires completed profile */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Layout><ProfilePage /></Layout>
+                </ProtectedRoute>
+              }
+            />
 
             <Route path="/" element={<Layout><LandingPage /></Layout>} />
 

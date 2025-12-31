@@ -4,9 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 interface ProtectedRouteProps {
     children: React.ReactNode;
     requiredRole?: "donor" | "recipient";
+    requireProfileCompletion?: boolean;
 }
 
-export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+export function ProtectedRoute({
+    children,
+    requiredRole,
+    requireProfileCompletion = true
+}: ProtectedRouteProps) {
     const { user, userProfile, loading } = useAuth();
 
     if (loading) {
@@ -22,6 +27,11 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
     if (!user) {
         return <Navigate to="/auth" replace />;
+    }
+
+    // Check if profile completion is required and profile is not completed
+    if (requireProfileCompletion && userProfile && !userProfile.isCompleted) {
+        return <Navigate to="/complete-profile" replace />;
     }
 
     if (requiredRole && userProfile?.role !== requiredRole) {
