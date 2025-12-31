@@ -26,31 +26,29 @@ export const authenticateAndLoadProfile = async (req, res, next) => {
     const decodedToken = await admin.auth().verifyIdToken(token);
 
     // 2. Extract Firebase user data
-    const { uid, name, email } = decodedToken;
+    const { uid, name, email, role } = decodedToken;
 
     // 3. Find existing profile
     let profile = await Profile.findOne({ uid });
 
     // 4. Auto-create profile on first login
     if (!profile) {
-      // Role can come from query param (GET) or body (PATCH)
-      const role = req.query.role || req.body.role;
+      // Role can come from Firebase Custom Claims OR query param (for first login)
+      const roleToUse = role || req.query.role;
 
-      if (!role || !["donor", "recipient"].includes(role)) {
-        // Return 404 if profile doesn't exist and no role provided
-        // This allows frontend to handle first login appropriately
-        return res.status(404).json({
+      if (!roleToUse || !["donor", "recipient"].includes(roleToUse)) {
+        return res.status(403).json({
           success: false,
-          message: "Profile not found. Please provide role parameter on first login.",
-          requiresRole: true,
+          message: "Access denied. Your account does not have a valid role assigned.",
+          requiresRoleClaim: true,
         });
       }
 
       profile = await Profile.create({
         uid,
-        name: name || decodedToken.displayName || "User",
+        name: name || decodedToken.name || req.query.name || "User",
         email: email || decodedToken.email,
-        role,
+        role: roleToUse,
         isCompleted: false,
       });
 

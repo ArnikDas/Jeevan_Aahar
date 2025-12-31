@@ -97,8 +97,8 @@ export default function AuthPage() {
         displayName: signUpData.name,
       });
 
-      // Trigger profile auto-create on backend by calling GET with role
-      await getUserProfile(signUpData.role);
+      // Trigger profile auto-create on backend by calling GET with role and name
+      await getUserProfile(signUpData.role, signUpData.name);
 
       toast({
         title: "Account Created! 🎉",

@@ -41,11 +41,19 @@ export function DonorDashboard() {
   console.log("User Profile:", userProfile);
   console.log("All Donations Data:", donationsData);
 
-  // Filter donations by current user's email
+  // Filter donations by current user's uid
   const userDonations = donationsData?.data?.filter(
     (donation: DonationResponse) => {
-      console.log("Checking donation email:", donation.email, "vs user email:", userProfile?.email);
-      return donation.email === userProfile?.email;
+      // Check if donation.donor (uid) matches userProfile.uid
+      // Fallback to email check if donor ID is somehow missing
+      const isDonorMatch = donation.donor === userProfile?.uid;
+
+      if (!isDonorMatch && donation.email === userProfile?.email) {
+        console.log("Match by email (legacy):", donation.email);
+        return true;
+      }
+
+      return isDonorMatch;
     }
   ) || [];
 

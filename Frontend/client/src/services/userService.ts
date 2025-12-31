@@ -40,7 +40,7 @@ export interface ApiResponse<T> {
  * 
  * On first login, include role as query parameter to auto-create profile
  */
-export async function getUserProfile(role?: "donor" | "recipient"): Promise<UserProfile | null> {
+export async function getUserProfile(role?: "donor" | "recipient", name?: string): Promise<UserProfile | null> {
     try {
         const user = auth.currentUser;
         const token = user ? await user.getIdToken() : null;
@@ -53,6 +53,9 @@ export async function getUserProfile(role?: "donor" | "recipient"): Promise<User
         let url = `${API_BASE_URL}/api/v1/profile`;
         if (role) {
             url += `?role=${role}`;
+            if (name) {
+                url += `&name=${encodeURIComponent(name)}`;
+            }
         }
 
         const response = await fetch(url, {
